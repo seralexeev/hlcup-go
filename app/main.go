@@ -57,6 +57,7 @@ func main() {
 
 		if body != nil && len(body) > 0 {
 			ctx.Response.Header.SetContentLength(len(body))
+			ctx.Response.Header.SetContentType("application/json")
 			ctx.SetBody(body)
 		}
 	}
@@ -107,6 +108,7 @@ func loadData(dir string) {
 			var usersFile UsersFile
 			usersFile.UnmarshalJSON(data)
 			for _, user := range usersFile.Users {
+				user.visits = make(map[int]*Visit)
 				users[user.ID] = user
 				user.CalculateAge()
 			}
@@ -116,6 +118,7 @@ func loadData(dir string) {
 			var locationsFile LocationsFile
 			locationsFile.UnmarshalJSON(data)
 			for _, location := range locationsFile.Locations {
+				location.visits = make(map[int]*Visit)
 				locations[location.ID] = location
 			}
 		}
@@ -126,11 +129,11 @@ func loadData(dir string) {
 			for _, visit := range visitsFile.Visits {
 				visits[visit.ID] = visit
 				location := locations[visit.Location]
-				location.visits = append(location.visits, visit)
+				location.visits[visit.ID] = visit
 				visit.locationRef = location
 
 				user := users[visit.User]
-				user.visits = append(user.visits, visit)
+				user.visits[visit.ID] = visit
 				visit.userRef = user
 			}
 		}

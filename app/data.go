@@ -5,7 +5,7 @@ type User struct {
 	Age                                int `json:"-,"`
 	Email, FirstName, LastName, Gender string
 
-	visits []*Visit `json:"-,"`
+	visits map[int]*Visit `json:"-,"`
 }
 
 func (user *User) IsValid() bool {
@@ -25,7 +25,7 @@ type Location struct {
 	ID, Distance         int
 	Place, Country, City string
 
-	visits []*Visit `json:"-,"`
+	visits map[int]*Visit `json:"-,"`
 }
 
 func (location *Location) IsValid() bool {

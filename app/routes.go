@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 
+	jlexer "github.com/mailru/easyjson/jlexer"
 	"github.com/valyala/fasthttp"
 )
 
@@ -221,10 +222,10 @@ func Create(ctx *fasthttp.RequestCtx, entity string) []byte {
 		}
 		visits[visit.ID] = &visit
 		location := locations[visit.Location]
-		location.visits = append(location.visits, &visit)
+		location.visits[visit.ID] = &visit
 		visit.locationRef = location
 		user := users[visit.User]
-		user.visits = append(user.visits, &visit)
+		user.visits[visit.ID] = &visit
 		visit.userRef = user
 	}
 
@@ -240,21 +241,186 @@ func Update(ctx *fasthttp.RequestCtx, entity string, idStr string) []byte {
 	switch entity {
 	case "users":
 		if id < int64(len(users)) && users[id] != nil {
-			users[id].UnmarshalJSON(ctx.PostBody())
+			user := users[id]
+			birthDate, email, firstName, lastName, gender := false, false, false, false, false
+			var update User
+			in := jlexer.Lexer{Data: ctx.PostBody()}
+			in.Delim('{')
+			for !in.IsDelim('}') {
+				key := in.UnsafeString()
+				in.WantColon()
+				if in.IsNull() {
+					ctx.SetStatusCode(fasthttp.StatusBadRequest)
+					return nil
+				}
+				switch key {
+				case "id":
+					ctx.SetStatusCode(fasthttp.StatusBadRequest)
+					return nil
+				case "birth_date":
+					update.BirthDate = int(in.Int())
+					birthDate = true
+				case "email":
+					update.Email = string(in.String())
+					email = true
+				case "first_name":
+					update.FirstName = string(in.String())
+					firstName = true
+				case "last_name":
+					update.LastName = string(in.String())
+					lastName = true
+				case "gender":
+					update.Gender = string(in.String())
+					gender = true
+				default:
+					in.SkipRecursive()
+				}
+				in.WantComma()
+			}
+			if !in.Ok() {
+				ctx.SetStatusCode(fasthttp.StatusBadRequest)
+				return nil
+			}
+			if birthDate {
+				user.BirthDate = update.BirthDate
+				user.CalculateAge()
+			}
+			if email {
+				user.Email = update.Email
+			}
+			if firstName {
+				user.FirstName = update.FirstName
+			}
+			if lastName {
+				user.LastName = update.LastName
+			}
+			if gender {
+				user.Gender = update.Gender
+			}
 			return emptyJSON
 		}
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
 		return nil
 	case "locations":
 		if id < int64(len(locations)) && locations[id] != nil {
-			locations[id].UnmarshalJSON(ctx.PostBody())
+			var update Location
+			location := locations[id]
+			distance, place, country, city := false, false, false, false
+			in := jlexer.Lexer{Data: ctx.PostBody()}
+			in.Delim('{')
+			for !in.IsDelim('}') {
+				key := in.UnsafeString()
+				in.WantColon()
+				if in.IsNull() {
+					ctx.SetStatusCode(fasthttp.StatusBadRequest)
+					return nil
+				}
+				switch key {
+				case "id":
+					ctx.SetStatusCode(fasthttp.StatusBadRequest)
+					return nil
+				case "distance":
+					update.Distance = int(in.Int())
+					distance = true
+				case "place":
+					update.Place = string(in.String())
+					place = true
+				case "country":
+					update.Country = string(in.String())
+					country = true
+				case "city":
+					update.City = string(in.String())
+					city = true
+				default:
+					in.SkipRecursive()
+				}
+				in.WantComma()
+			}
+			if !in.Ok() {
+				ctx.SetStatusCode(fasthttp.StatusBadRequest)
+				return nil
+			}
+			if distance {
+				location.Distance = update.Distance
+			}
+			if place {
+				location.Place = update.Place
+			}
+			if country {
+				location.Country = update.Country
+			}
+			if city {
+				location.City = update.City
+			}
 			return emptyJSON
 		}
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
 		return nil
 	case "visits":
 		if id < int64(len(visits)) && visits[id] != nil {
-			visits[id].UnmarshalJSON(ctx.PostBody())
+			var update Visit
+			visit := visits[id]
+			location, user, visitedAt, mark := false, false, false, false
+			in := jlexer.Lexer{Data: ctx.PostBody()}
+			in.Delim('{')
+			for !in.IsDelim('}') {
+				key := in.UnsafeString()
+				in.WantColon()
+				if in.IsNull() {
+					ctx.SetStatusCode(fasthttp.StatusBadRequest)
+					return nil
+				}
+				switch key {
+				case "id":
+					ctx.SetStatusCode(fasthttp.StatusBadRequest)
+					return nil
+				case "location":
+					update.Location = int(in.Int())
+					location = visit.Location != update.Location
+				case "user":
+					update.User = int(in.Int())
+					user = visit.User != update.User
+				case "visited_at":
+					update.VisitedAt = int(in.Int())
+					visitedAt = true
+				case "mark":
+					update.Mark = int(in.Int())
+					mark = true
+				default:
+					in.SkipRecursive()
+				}
+				in.WantComma()
+			}
+			if !in.Ok() {
+				ctx.SetStatusCode(fasthttp.StatusBadRequest)
+				return nil
+			}
+			if location {
+				if len(locations) < update.Location || locations[update.Location] == nil {
+					ctx.SetStatusCode(fasthttp.StatusBadRequest)
+					return nil
+				}
+				delete(visit.locationRef.visits, visit.ID)
+				visit.Location = update.Location
+				visit.locationRef = locations[update.Location]
+				visit.locationRef.visits[visit.ID] = visit
+			}
+			if user {
+				if len(users) < update.User || users[update.User] == nil {
+					ctx.SetStatusCode(fasthttp.StatusBadRequest)
+					return nil
+				}
+				delete(visit.userRef.visits, visit.ID)
+				visit.User = update.User
+				visit.userRef = users[update.User]
+				visit.userRef.visits[visit.ID] = visit
+			}
+			if visitedAt {
+				visit.VisitedAt = update.VisitedAt
+			}
+			if mark {
+				visit.Mark = update.Mark
+			}
 			return emptyJSON
 		}
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
