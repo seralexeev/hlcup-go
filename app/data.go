@@ -3,13 +3,13 @@ package main
 type User struct {
 	ID, BirthDate                      int
 	Age                                int `json:"-,"`
-	Email, FirstName, LastName, Gender string
+	Email, FirstName, LastName, Gender []byte
 
-	visits map[int]*Visit `json:"-,"`
+	visits []*Visit `json:"-,"`
 }
 
 func (user *User) IsValid() bool {
-	return user.ID > 0 && user.Email != "" && user.FirstName != "" && user.LastName != "" && user.Gender != ""
+	return user.ID > 0 && len(user.Email) > 0 && len(user.FirstName) > 0 && len(user.LastName) > 0 && len(user.Gender) > 0
 }
 
 func (user *User) CalculateAge() {
@@ -23,13 +23,13 @@ func readUser(data []byte) (*User, error) {
 
 type Location struct {
 	ID, Distance         int
-	Place, Country, City string
+	Place, Country, City []byte
 
-	visits map[int]*Visit `json:"-,"`
+	visits []*Visit `json:"-,"`
 }
 
 func (location *Location) IsValid() bool {
-	return location.ID > 0 && location.Place != "" && location.Country != "" && location.City != ""
+	return location.ID > 0 && len(location.Place) > 0 && len(location.Country) > 0 && len(location.City) > 0
 }
 
 func readLocation(data []byte) (*Location, error) {
@@ -59,7 +59,7 @@ type VisitsResult struct {
 
 type VisitResult struct {
 	Mark, VisitedAt int
-	Place           string
+	Place           []byte
 }
 
 type AvgResult struct {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"math"
 	"sort"
 	"strconv"
@@ -15,18 +16,18 @@ func EntityById(ctx *fasthttp.RequestCtx, entity string, idStr string) []byte {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
 		return nil
 	}
-	switch entity {
-	case "users":
+	switch entity[0] {
+	case 'u':
 		if id < int64(len(users)) && users[id] != nil {
 			data, _ := users[id].MarshalJSON()
 			return data
 		}
-	case "locations":
+	case 'l':
 		if id < int64(len(locations)) && locations[id] != nil {
 			data, _ := locations[id].MarshalJSON()
 			return data
 		}
-	case "visits":
+	case 'v':
 		if id < int64(len(visits)) && visits[id] != nil {
 			data, _ := visits[id].MarshalJSON()
 			return data
@@ -66,10 +67,10 @@ func Visits(ctx *fasthttp.RequestCtx, idStr string) []byte {
 			return x.VisitedAt < toDate
 		})
 	}
-	country := string(args.Peek("country"))
-	if country != "" && len(country) > 0 {
+	country := args.Peek("country")
+	if len(country) > 0 {
 		filters = append(filters, func(x *Visit) bool {
-			return x.locationRef.Country == country
+			return bytes.Equal(x.locationRef.Country, country)
 		})
 	}
 	if args.Has("toDistance") {
@@ -84,6 +85,9 @@ func Visits(ctx *fasthttp.RequestCtx, idStr string) []byte {
 	}
 	resultVisits := make([]VisitResult, 0)
 	for _, visit := range user.visits {
+		if visit == nil {
+			continue
+		}
 		satisfy := true
 		for _, fn := range filters {
 			if !fn(visit) {
@@ -135,13 +139,13 @@ func Avg(ctx *fasthttp.RequestCtx, idStr string) []byte {
 		})
 	}
 	if args.Has("gender") {
-		gender := string(args.Peek("gender"))
-		if gender != "f" && gender != "m" {
+		gender := args.Peek("gender")
+		if !bytes.Equal(gender, f) && !bytes.Equal(gender, m) {
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
 			return nil
 		}
 		filters = append(filters, func(x *Visit) bool {
-			return x.userRef.Gender == gender
+			return bytes.Equal(x.userRef.Gender, gender)
 		})
 	}
 	if args.Has("fromAge") {
@@ -168,6 +172,9 @@ func Avg(ctx *fasthttp.RequestCtx, idStr string) []byte {
 	var count = 0
 	var sum = 0
 	for _, visit := range location.visits {
+		if visit == nil {
+			continue
+		}
 		satisfy := true
 		for _, fn := range filters {
 			if !fn(visit) {
@@ -196,36 +203,38 @@ func round(num float64) int {
 }
 
 func Create(ctx *fasthttp.RequestCtx, entity string) []byte {
-	switch entity {
-	case "users":
-		var user User
+	switch entity[0] {
+	case 'u':
+		user := new(User)
 		err := user.UnmarshalJSON(ctx.PostBody())
 		if err != nil || !user.IsValid() {
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
 			return nil
 		}
-		users[user.ID] = &user
-	case "locations":
-		var location Location
+		user.visits = make([]*Visit, 10)
+		users[user.ID] = user
+	case 'l':
+		location := new(Location)
 		err := location.UnmarshalJSON(ctx.PostBody())
 		if err != nil || !location.IsValid() {
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
 			return nil
 		}
-		locations[location.ID] = &location
-	case "visits":
-		var visit Visit
+		location.visits = make([]*Visit, 10)
+		locations[location.ID] = location
+	case 'v':
+		visit := new(Visit)
 		err := visit.UnmarshalJSON(ctx.PostBody())
 		if err != nil || !visit.IsValid() {
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
 			return nil
 		}
-		visits[visit.ID] = &visit
+		visits[visit.ID] = visit
 		location := locations[visit.Location]
-		location.visits[visit.ID] = &visit
+		location.visits = append(location.visits, visit)
 		visit.locationRef = location
 		user := users[visit.User]
-		user.visits[visit.ID] = &visit
+		user.visits = append(user.visits, visit)
 		visit.userRef = user
 	}
 
@@ -238,12 +247,12 @@ func Update(ctx *fasthttp.RequestCtx, entity string, idStr string) []byte {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		return nil
 	}
-	switch entity {
-	case "users":
+	switch entity[0] {
+	case 'u':
 		if id < int64(len(users)) && users[id] != nil {
 			user := users[id]
 			birthDate, email, firstName, lastName, gender := false, false, false, false, false
-			var update User
+			update := new(User)
 			in := jlexer.Lexer{Data: ctx.PostBody()}
 			in.Delim('{')
 			for !in.IsDelim('}') {
@@ -253,24 +262,24 @@ func Update(ctx *fasthttp.RequestCtx, entity string, idStr string) []byte {
 					ctx.SetStatusCode(fasthttp.StatusBadRequest)
 					return nil
 				}
-				switch key {
-				case "id":
+				switch key[0] {
+				case 'i':
 					ctx.SetStatusCode(fasthttp.StatusBadRequest)
 					return nil
-				case "birth_date":
+				case 'b':
 					update.BirthDate = int(in.Int())
 					birthDate = true
-				case "email":
-					update.Email = string(in.String())
+				case 'e':
+					update.Email = in.Bytes()
 					email = true
-				case "first_name":
-					update.FirstName = string(in.String())
+				case 'f':
+					update.FirstName = in.Bytes()
 					firstName = true
-				case "last_name":
-					update.LastName = string(in.String())
+				case 'l':
+					update.LastName = in.Bytes()
 					lastName = true
-				case "gender":
-					update.Gender = string(in.String())
+				case 'g':
+					update.Gender = in.Bytes()
 					gender = true
 				default:
 					in.SkipRecursive()
@@ -301,35 +310,36 @@ func Update(ctx *fasthttp.RequestCtx, entity string, idStr string) []byte {
 		}
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
 		return nil
-	case "locations":
+	case 'l':
 		if id < int64(len(locations)) && locations[id] != nil {
-			var update Location
+			update := new(Location)
 			location := locations[id]
 			distance, place, country, city := false, false, false, false
 			in := jlexer.Lexer{Data: ctx.PostBody()}
 			in.Delim('{')
 			for !in.IsDelim('}') {
 				key := in.UnsafeString()
+				key0 := key[0]
 				in.WantColon()
 				if in.IsNull() {
 					ctx.SetStatusCode(fasthttp.StatusBadRequest)
 					return nil
 				}
-				switch key {
-				case "id":
+				switch {
+				case key0 == 'i':
 					ctx.SetStatusCode(fasthttp.StatusBadRequest)
 					return nil
-				case "distance":
+				case key0 == 'd':
 					update.Distance = int(in.Int())
 					distance = true
-				case "place":
-					update.Place = string(in.String())
+				case key0 == 'p':
+					update.Place = in.Bytes()
 					place = true
-				case "country":
-					update.Country = string(in.String())
+				case key0 == 'c' && key[1] == 'o':
+					update.Country = in.Bytes()
 					country = true
-				case "city":
-					update.City = string(in.String())
+				case key0 == 'c' && key[1] == 'i':
+					update.City = in.Bytes()
 					city = true
 				default:
 					in.SkipRecursive()
@@ -356,9 +366,9 @@ func Update(ctx *fasthttp.RequestCtx, entity string, idStr string) []byte {
 		}
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
 		return nil
-	case "visits":
+	case 'v':
 		if id < int64(len(visits)) && visits[id] != nil {
-			var update Visit
+			update := new(Visit)
 			visit := visits[id]
 			location, user, visitedAt, mark := false, false, false, false
 			in := jlexer.Lexer{Data: ctx.PostBody()}
@@ -370,20 +380,20 @@ func Update(ctx *fasthttp.RequestCtx, entity string, idStr string) []byte {
 					ctx.SetStatusCode(fasthttp.StatusBadRequest)
 					return nil
 				}
-				switch key {
-				case "id":
+				switch key[0] {
+				case 'i':
 					ctx.SetStatusCode(fasthttp.StatusBadRequest)
 					return nil
-				case "location":
+				case 'l':
 					update.Location = int(in.Int())
 					location = visit.Location != update.Location
-				case "user":
+				case 'u':
 					update.User = int(in.Int())
 					user = visit.User != update.User
-				case "visited_at":
+				case 'v':
 					update.VisitedAt = int(in.Int())
 					visitedAt = true
-				case "mark":
+				case 'm':
 					update.Mark = int(in.Int())
 					mark = true
 				default:
@@ -400,20 +410,32 @@ func Update(ctx *fasthttp.RequestCtx, entity string, idStr string) []byte {
 					ctx.SetStatusCode(fasthttp.StatusBadRequest)
 					return nil
 				}
-				delete(visit.locationRef.visits, visit.ID)
+				for i, v := range visit.locationRef.visits {
+					if v != nil && v.ID == visit.ID {
+						// visit.locationRef.visits = append(visit.locationRef.visits[:i], visit.locationRef.visits[i+1:]...)
+						visit.locationRef.visits[i] = nil
+						break
+					}
+				}
 				visit.Location = update.Location
 				visit.locationRef = locations[update.Location]
-				visit.locationRef.visits[visit.ID] = visit
+				visit.locationRef.visits = append(visit.locationRef.visits, visit)
 			}
 			if user {
 				if len(users) < update.User || users[update.User] == nil {
 					ctx.SetStatusCode(fasthttp.StatusBadRequest)
 					return nil
 				}
-				delete(visit.userRef.visits, visit.ID)
+				for i, v := range visit.userRef.visits {
+					if v != nil && v.ID == visit.ID {
+						// visit.userRef.visits = append(visit.userRef.visits[:i], visit.userRef.visits[i+1:]...)
+						visit.userRef.visits[i] = nil
+						break
+					}
+				}
 				visit.User = update.User
 				visit.userRef = users[update.User]
-				visit.userRef.visits[visit.ID] = visit
+				visit.userRef.visits = append(visit.userRef.visits, visit)
 			}
 			if visitedAt {
 				visit.VisitedAt = update.VisitedAt
@@ -431,3 +453,5 @@ func Update(ctx *fasthttp.RequestCtx, entity string, idStr string) []byte {
 }
 
 var emptyJSON = []byte("{}")
+var f = []byte("f")
+var m = []byte("m")

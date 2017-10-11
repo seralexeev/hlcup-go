@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"path"
+	"runtime"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -85,6 +87,7 @@ func fileOrder(path string) int {
 }
 
 func loadData(dir string) {
+	debug.SetGCPercent(50)
 	opts, err := ioutil.ReadFile(path.Join(dir, "options.txt"))
 	if err != nil {
 		log.Fatal(err)
@@ -108,7 +111,6 @@ func loadData(dir string) {
 			var usersFile UsersFile
 			usersFile.UnmarshalJSON(data)
 			for _, user := range usersFile.Users {
-				user.visits = make(map[int]*Visit)
 				users[user.ID] = user
 				user.CalculateAge()
 			}
@@ -118,7 +120,6 @@ func loadData(dir string) {
 			var locationsFile LocationsFile
 			locationsFile.UnmarshalJSON(data)
 			for _, location := range locationsFile.Locations {
-				location.visits = make(map[int]*Visit)
 				locations[location.ID] = location
 			}
 		}
@@ -129,13 +130,16 @@ func loadData(dir string) {
 			for _, visit := range visitsFile.Visits {
 				visits[visit.ID] = visit
 				location := locations[visit.Location]
-				location.visits[visit.ID] = visit
+				location.visits = append(location.visits, visit)
 				visit.locationRef = location
 
 				user := users[visit.User]
-				user.visits[visit.ID] = visit
+				user.visits = append(user.visits, visit)
 				visit.userRef = user
 			}
 		}
 	}
+
+	runtime.GC()
+	debug.SetGCPercent(-1)
 }
