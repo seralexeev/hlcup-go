@@ -1,4 +1,7 @@
 # Highload cup
+* [valyala/fasthttp](https://github.com/valyala/fasthttp)
+* [mailru/easyjson](https://github.com/mailru/easyjson)
+* disabled gc
 
 ![](img/1.png)
 ![](img/2.png)
