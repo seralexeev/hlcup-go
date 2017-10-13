@@ -44,7 +44,7 @@ func easyjson794297d0DecodeGithubComSeralexeevHlcupGoApp(in *jlexer.Lexer, out *
 				in.Delim('[')
 				if out.Visits == nil {
 					if !in.IsDelim(']') {
-						out.Visits = make([]VisitResult, 0, 1)
+						out.Visits = make([]VisitResult, 0, 2)
 					} else {
 						out.Visits = []VisitResult{}
 					}
@@ -251,12 +251,7 @@ func easyjson794297d0DecodeGithubComSeralexeevHlcupGoApp2(in *jlexer.Lexer, out 
 		case "visited_at":
 			out.VisitedAt = int(in.Int())
 		case "place":
-			if in.IsNull() {
-				in.Skip()
-				out.Place = nil
-			} else {
-				out.Place = in.Bytes()
-			}
+			out.Place = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -288,7 +283,7 @@ func easyjson794297d0EncodeGithubComSeralexeevHlcupGoApp2(out *jwriter.Writer, i
 	}
 	first = false
 	out.RawString("\"place\":")
-	out.Base64Bytes(in.Place)
+	out.String(string(in.Place))
 	out.RawByte('}')
 }
 
@@ -449,17 +444,17 @@ func easyjson794297d0DecodeGithubComSeralexeevHlcupGoApp4(in *jlexer.Lexer, out 
 					out.Users = (out.Users)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v10 *User
+					var v7 *User
 					if in.IsNull() {
 						in.Skip()
-						v10 = nil
+						v7 = nil
 					} else {
-						if v10 == nil {
-							v10 = new(User)
+						if v7 == nil {
+							v7 = new(User)
 						}
-						(*v10).UnmarshalEasyJSON(in)
+						(*v7).UnmarshalEasyJSON(in)
 					}
-					out.Users = append(out.Users, v10)
+					out.Users = append(out.Users, v7)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -487,14 +482,14 @@ func easyjson794297d0EncodeGithubComSeralexeevHlcupGoApp4(out *jwriter.Writer, i
 		out.RawString("null")
 	} else {
 		out.RawByte('[')
-		for v11, v12 := range in.Users {
-			if v11 > 0 {
+		for v8, v9 := range in.Users {
+			if v8 > 0 {
 				out.RawByte(',')
 			}
-			if v12 == nil {
+			if v9 == nil {
 				out.RawString("null")
 			} else {
-				(*v12).MarshalEasyJSON(out)
+				(*v9).MarshalEasyJSON(out)
 			}
 		}
 		out.RawByte(']')
@@ -549,33 +544,13 @@ func easyjson794297d0DecodeGithubComSeralexeevHlcupGoApp5(in *jlexer.Lexer, out 
 		case "birth_date":
 			out.BirthDate = int(in.Int())
 		case "email":
-			if in.IsNull() {
-				in.Skip()
-				out.Email = nil
-			} else {
-				out.Email = in.Bytes()
-			}
+			out.Email = string(in.String())
 		case "first_name":
-			if in.IsNull() {
-				in.Skip()
-				out.FirstName = nil
-			} else {
-				out.FirstName = in.Bytes()
-			}
+			out.FirstName = string(in.String())
 		case "last_name":
-			if in.IsNull() {
-				in.Skip()
-				out.LastName = nil
-			} else {
-				out.LastName = in.Bytes()
-			}
+			out.LastName = string(in.String())
 		case "gender":
-			if in.IsNull() {
-				in.Skip()
-				out.Gender = nil
-			} else {
-				out.Gender = in.Bytes()
-			}
+			out.Gender = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -607,25 +582,25 @@ func easyjson794297d0EncodeGithubComSeralexeevHlcupGoApp5(out *jwriter.Writer, i
 	}
 	first = false
 	out.RawString("\"email\":")
-	out.Base64Bytes(in.Email)
+	out.String(string(in.Email))
 	if !first {
 		out.RawByte(',')
 	}
 	first = false
 	out.RawString("\"first_name\":")
-	out.Base64Bytes(in.FirstName)
+	out.String(string(in.FirstName))
 	if !first {
 		out.RawByte(',')
 	}
 	first = false
 	out.RawString("\"last_name\":")
-	out.Base64Bytes(in.LastName)
+	out.String(string(in.LastName))
 	if !first {
 		out.RawByte(',')
 	}
 	first = false
 	out.RawString("\"gender\":")
-	out.Base64Bytes(in.Gender)
+	out.String(string(in.Gender))
 	out.RawByte('}')
 }
 
@@ -687,17 +662,17 @@ func easyjson794297d0DecodeGithubComSeralexeevHlcupGoApp6(in *jlexer.Lexer, out 
 					out.Locations = (out.Locations)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v25 *Location
+					var v10 *Location
 					if in.IsNull() {
 						in.Skip()
-						v25 = nil
+						v10 = nil
 					} else {
-						if v25 == nil {
-							v25 = new(Location)
+						if v10 == nil {
+							v10 = new(Location)
 						}
-						(*v25).UnmarshalEasyJSON(in)
+						(*v10).UnmarshalEasyJSON(in)
 					}
-					out.Locations = append(out.Locations, v25)
+					out.Locations = append(out.Locations, v10)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -725,14 +700,14 @@ func easyjson794297d0EncodeGithubComSeralexeevHlcupGoApp6(out *jwriter.Writer, i
 		out.RawString("null")
 	} else {
 		out.RawByte('[')
-		for v26, v27 := range in.Locations {
-			if v26 > 0 {
+		for v11, v12 := range in.Locations {
+			if v11 > 0 {
 				out.RawByte(',')
 			}
-			if v27 == nil {
+			if v12 == nil {
 				out.RawString("null")
 			} else {
-				(*v27).MarshalEasyJSON(out)
+				(*v12).MarshalEasyJSON(out)
 			}
 		}
 		out.RawByte(']')
@@ -787,26 +762,11 @@ func easyjson794297d0DecodeGithubComSeralexeevHlcupGoApp7(in *jlexer.Lexer, out 
 		case "distance":
 			out.Distance = int(in.Int())
 		case "place":
-			if in.IsNull() {
-				in.Skip()
-				out.Place = nil
-			} else {
-				out.Place = in.Bytes()
-			}
+			out.Place = string(in.String())
 		case "country":
-			if in.IsNull() {
-				in.Skip()
-				out.Country = nil
-			} else {
-				out.Country = in.Bytes()
-			}
+			out.Country = string(in.String())
 		case "city":
-			if in.IsNull() {
-				in.Skip()
-				out.City = nil
-			} else {
-				out.City = in.Bytes()
-			}
+			out.City = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -838,19 +798,19 @@ func easyjson794297d0EncodeGithubComSeralexeevHlcupGoApp7(out *jwriter.Writer, i
 	}
 	first = false
 	out.RawString("\"place\":")
-	out.Base64Bytes(in.Place)
+	out.String(string(in.Place))
 	if !first {
 		out.RawByte(',')
 	}
 	first = false
 	out.RawString("\"country\":")
-	out.Base64Bytes(in.Country)
+	out.String(string(in.Country))
 	if !first {
 		out.RawByte(',')
 	}
 	first = false
 	out.RawString("\"city\":")
-	out.Base64Bytes(in.City)
+	out.String(string(in.City))
 	out.RawByte('}')
 }
 

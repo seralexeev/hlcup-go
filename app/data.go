@@ -3,7 +3,7 @@ package main
 type User struct {
 	ID, BirthDate                      int
 	Age                                int `json:"-,"`
-	Email, FirstName, LastName, Gender []byte
+	Email, FirstName, LastName, Gender string
 
 	visits []*Visit `json:"-,"`
 }
@@ -23,7 +23,7 @@ func readUser(data []byte) (*User, error) {
 
 type Location struct {
 	ID, Distance         int
-	Place, Country, City []byte
+	Place, Country, City string
 
 	visits []*Visit `json:"-,"`
 }
@@ -59,7 +59,7 @@ type VisitsResult struct {
 
 type VisitResult struct {
 	Mark, VisitedAt int
-	Place           []byte
+	Place           string
 }
 
 type AvgResult struct {

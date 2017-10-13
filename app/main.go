@@ -39,27 +39,32 @@ func main() {
 	requestHandler := func(ctx *fasthttp.RequestCtx) {
 		path := string(ctx.Path())
 		parts := strings.Split(path, "/")
+		if len(parts) < 3 || len(parts[1]) < 1 || len(parts[2]) < 1 {
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			return
+		}
 		var body []byte
+		p1 := parts[1][0]
+		p2 := parts[2][0]
+		l := len(parts)
 		switch {
-		case ctx.IsGet() && len(parts) == 4 && parts[1] == "locations" && parts[3] == "avg":
+		case ctx.IsGet() && l == 4 && p1 == 'l' && len(parts[3]) > 0 && parts[3][0] == 'a':
 			body = Avg(ctx, parts[2])
-		case ctx.IsGet() && len(parts) == 3 && (parts[1] == "users" || parts[1] == "locations" || parts[1] == "visits"):
-			body = EntityById(ctx, parts[1], parts[2])
-		case ctx.IsGet() && len(parts) == 4 && parts[1] == "users" && parts[3] == "visits":
+		case ctx.IsGet() && l == 3 && (p1 == 'u' || p1 == 'l' || p1 == 'v'):
+			body = EntityById(ctx, p1, parts[2])
+		case ctx.IsGet() && l == 4 && p1 == 'u' && len(parts[3]) > 0 && parts[3][0] == 'v':
 			body = Visits(ctx, parts[2])
-		case ctx.IsPost() && len(parts) == 3 && parts[2] == "new" &&
-			(parts[1] == "users" || parts[1] == "locations" || parts[1] == "visits"):
-			body = Create(ctx, parts[1])
-		case ctx.IsPost() && len(parts) == 3 &&
-			(parts[1] == "users" || parts[1] == "locations" || parts[1] == "visits"):
-			body = Update(ctx, parts[1], parts[2])
+		case ctx.IsPost() && l == 3 && p2 == 'n' && (p1 == 'u' || p1 == 'l' || p1 == 'v'):
+			body = Create(ctx, p1)
+		case ctx.IsPost() && l == 3 && (p1 == 'u' || p1 == 'l' || p1 == 'v'):
+			body = Update(ctx, p1, parts[2])
 		default:
 			ctx.SetStatusCode(fasthttp.StatusNotFound)
 		}
 
 		if body != nil && len(body) > 0 {
 			ctx.Response.Header.SetContentLength(len(body))
-			ctx.Response.Header.SetContentType("application/json")
+			ctx.Response.Header.SetContentTypeBytes(contentTypeBytes)
 			ctx.SetBody(body)
 		}
 	}
@@ -108,27 +113,30 @@ func loadData(dir string) {
 	for _, file := range files {
 		if strings.HasPrefix(file.Name(), "users") {
 			data, _ := ioutil.ReadFile(path.Join(dir, file.Name()))
-			var usersFile UsersFile
+			usersFile := new(UsersFile)
 			usersFile.UnmarshalJSON(data)
 			for _, user := range usersFile.Users {
 				users[user.ID] = user
+				user.visits = make([]*Visit, 10)
 				user.CalculateAge()
 			}
 		}
 		if strings.HasPrefix(file.Name(), "locations") {
 			data, _ := ioutil.ReadFile(path.Join(dir, file.Name()))
-			var locationsFile LocationsFile
+			locationsFile := new(LocationsFile)
 			locationsFile.UnmarshalJSON(data)
 			for _, location := range locationsFile.Locations {
 				locations[location.ID] = location
+				location.visits = make([]*Visit, 10)
 			}
 		}
 		if strings.HasPrefix(file.Name(), "visits") {
 			data, _ := ioutil.ReadFile(path.Join(dir, file.Name()))
-			var visitsFile VisitsFile
+			visitsFile := new(VisitsFile)
 			visitsFile.UnmarshalJSON(data)
 			for _, visit := range visitsFile.Visits {
 				visits[visit.ID] = visit
+
 				location := locations[visit.Location]
 				location.visits = append(location.visits, visit)
 				visit.locationRef = location
@@ -143,3 +151,5 @@ func loadData(dir string) {
 	runtime.GC()
 	debug.SetGCPercent(-1)
 }
+
+var contentTypeBytes = []byte("application/json")

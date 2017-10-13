@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"math"
 	"sort"
 	"strconv"
@@ -10,13 +9,13 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func EntityById(ctx *fasthttp.RequestCtx, entity string, idStr string) []byte {
+func EntityById(ctx *fasthttp.RequestCtx, entity byte, idStr string) []byte {
 	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
 		return nil
 	}
-	switch entity[0] {
+	switch entity {
 	case 'u':
 		if id < int64(len(users)) && users[id] != nil {
 			data, _ := users[id].MarshalJSON()
@@ -47,41 +46,35 @@ func Visits(ctx *fasthttp.RequestCtx, idStr string) []byte {
 	}
 	user, filters := users[id], make([]visitPredicate, 0)
 	args := ctx.QueryArgs()
-	if args.Has("fromDate") {
-		fromDate, err := args.GetUint("fromDate")
-		if err != nil {
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			return nil
-		}
+	if fromDate, err := args.GetUint("fromDate"); err == nil {
 		filters = append(filters, func(x *Visit) bool {
 			return x.VisitedAt > fromDate
 		})
+	} else if err != fasthttp.ErrNoArgValue {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return nil
 	}
-	if args.Has("toDate") {
-		toDate, err := args.GetUint("toDate")
-		if err != nil {
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			return nil
-		}
+	if toDate, err := args.GetUint("toDate"); err == nil {
 		filters = append(filters, func(x *Visit) bool {
 			return x.VisitedAt < toDate
 		})
+	} else if err != fasthttp.ErrNoArgValue {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return nil
 	}
-	country := args.Peek("country")
+	country := string(args.PeekBytes(countryBytes))
 	if len(country) > 0 {
 		filters = append(filters, func(x *Visit) bool {
-			return bytes.Equal(x.locationRef.Country, country)
+			return x.locationRef.Country == country
 		})
 	}
-	if args.Has("toDistance") {
-		toDistance, err := args.GetUint("toDistance")
-		if err != nil {
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			return nil
-		}
+	if toDistance, err := args.GetUint("toDistance"); err == nil {
 		filters = append(filters, func(x *Visit) bool {
 			return x.locationRef.Distance < toDistance
 		})
+	} else if err != fasthttp.ErrNoArgValue {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return nil
 	}
 	resultVisits := make([]VisitResult, 0)
 	for _, visit := range user.visits {
@@ -118,55 +111,47 @@ func Avg(ctx *fasthttp.RequestCtx, idStr string) []byte {
 	}
 	location, filters := locations[id], make([]visitPredicate, 0)
 	args := ctx.QueryArgs()
-	if args.Has("fromDate") {
-		fromDate, err := args.GetUint("fromDate")
-		if err != nil {
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			return nil
-		}
+	if fromDate, err := args.GetUint("fromDate"); err == nil {
 		filters = append(filters, func(x *Visit) bool {
 			return x.VisitedAt > fromDate
 		})
+	} else if err != fasthttp.ErrNoArgValue {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return nil
 	}
-	if args.Has("toDate") {
-		toDate, err := args.GetUint("toDate")
-		if err != nil {
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			return nil
-		}
+	if toDate, err := args.GetUint("toDate"); err == nil {
 		filters = append(filters, func(x *Visit) bool {
 			return x.VisitedAt < toDate
 		})
+	} else if err != fasthttp.ErrNoArgValue {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return nil
 	}
-	if args.Has("gender") {
-		gender := args.Peek("gender")
-		if !bytes.Equal(gender, f) && !bytes.Equal(gender, m) {
+	gender := string(args.Peek("gender"))
+	if len(gender) > 0 {
+		if gender != "f" && gender != "m" {
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
 			return nil
 		}
 		filters = append(filters, func(x *Visit) bool {
-			return bytes.Equal(x.userRef.Gender, gender)
+			return x.userRef.Gender == gender
 		})
 	}
-	if args.Has("fromAge") {
-		fromAge, err := args.GetUint("fromAge")
-		if err != nil {
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			return nil
-		}
+	if fromAge, err := args.GetUint("fromAge"); err == nil {
 		filters = append(filters, func(x *Visit) bool {
 			return x.userRef.Age >= fromAge
 		})
+	} else if err != fasthttp.ErrNoArgValue {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return nil
 	}
-	if args.Has("toAge") {
-		toAge, err := args.GetUint("toAge")
-		if err != nil {
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			return nil
-		}
+	if toAge, err := args.GetUint("toAge"); err == nil {
 		filters = append(filters, func(x *Visit) bool {
 			return x.userRef.Age < toAge
 		})
+	} else if err != fasthttp.ErrNoArgValue {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return nil
 	}
 
 	var count = 0
@@ -202,8 +187,8 @@ func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))
 }
 
-func Create(ctx *fasthttp.RequestCtx, entity string) []byte {
-	switch entity[0] {
+func Create(ctx *fasthttp.RequestCtx, entity byte) []byte {
+	switch entity {
 	case 'u':
 		user := new(User)
 		err := user.UnmarshalJSON(ctx.PostBody())
@@ -241,13 +226,13 @@ func Create(ctx *fasthttp.RequestCtx, entity string) []byte {
 	return emptyJSON
 }
 
-func Update(ctx *fasthttp.RequestCtx, entity string, idStr string) []byte {
+func Update(ctx *fasthttp.RequestCtx, entity byte, idStr string) []byte {
 	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		return nil
 	}
-	switch entity[0] {
+	switch entity {
 	case 'u':
 		if id < int64(len(users)) && users[id] != nil {
 			user := users[id]
@@ -270,16 +255,16 @@ func Update(ctx *fasthttp.RequestCtx, entity string, idStr string) []byte {
 					update.BirthDate = int(in.Int())
 					birthDate = true
 				case 'e':
-					update.Email = in.Bytes()
+					update.Email = in.String()
 					email = true
 				case 'f':
-					update.FirstName = in.Bytes()
+					update.FirstName = in.String()
 					firstName = true
 				case 'l':
-					update.LastName = in.Bytes()
+					update.LastName = in.String()
 					lastName = true
 				case 'g':
-					update.Gender = in.Bytes()
+					update.Gender = in.String()
 					gender = true
 				default:
 					in.SkipRecursive()
@@ -333,13 +318,13 @@ func Update(ctx *fasthttp.RequestCtx, entity string, idStr string) []byte {
 					update.Distance = int(in.Int())
 					distance = true
 				case key0 == 'p':
-					update.Place = in.Bytes()
+					update.Place = in.String()
 					place = true
 				case key0 == 'c' && key[1] == 'o':
-					update.Country = in.Bytes()
+					update.Country = in.String()
 					country = true
 				case key0 == 'c' && key[1] == 'i':
-					update.City = in.Bytes()
+					update.City = in.String()
 					city = true
 				default:
 					in.SkipRecursive()
@@ -453,5 +438,4 @@ func Update(ctx *fasthttp.RequestCtx, entity string, idStr string) []byte {
 }
 
 var emptyJSON = []byte("{}")
-var f = []byte("f")
-var m = []byte("m")
+var countryBytes = []byte("country")
